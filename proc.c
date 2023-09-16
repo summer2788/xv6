@@ -584,15 +584,17 @@ void
 ps(int pid)
 {
   struct proc *p;
+  const char* stateNames[] = {"UNUSED", "EMBRYO", "SLEEPING", "RUNNABLE", "RUNNING", "ZOMBIE"};
   
   // Print header of the table 
-  cprintf("name     pid     state       priority\n");
-
+  cprintf("name     pid    state     priority\n");
   acquire(&ptable.lock);
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
-    if(pid == 0 || p->pid == pid) { // If pid is 0, print all. Else print matching pid.
-      cprintf("%s     %d      %d       %d\n", p->name, p->pid, p->state, p->nice);
-    }
+    if(p->state != UNUSED) {
+     if(pid == 0 || p->pid == pid) { // If pid is 0, print all. Else print matching pid.
+      cprintf("%s     %d     %s     %d\n", p->name, p->pid, stateNames[p->state], p->nice);   
+     }
+   }
   }
   release(&ptable.lock);
 }
