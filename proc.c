@@ -88,6 +88,7 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
+  p->nice = 20; //set default nice value.
 
   release(&ptable.lock);
 
@@ -532,3 +533,70 @@ procdump(void)
     cprintf("\n");
   }
 }
+
+//retrieves the nice value of target process ID.
+//Return -1 if there is no process corresponing to the pid
+int
+getnice(int pid)
+{
+  struct proc *p;
+
+  acquire(&ptable.lock);
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+    if(p->pid == pid) {
+      release(&ptable.lock);
+      return p->nice;
+    }
+  }
+  release(&ptable.lock);
+  return -1;  // Return -1 if no corresponing process found 
+}
+
+//sets the nice value of target process ID
+//Return 0 on success. Return -1 if there is no corresponding process or nice value is invalid 
+
+int
+setnice(int pid, int value)
+{
+  struct proc *p;
+
+  if (value < 0 || value > 39) // Check for range of valid
+    return -1;
+
+  acquire(&ptable.lock);
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+    if(p->pid == pid) {
+      p->nice = value;
+      release(&ptable.lock);
+      return 0;  // Return 0 for success
+    }
+  }
+  release(&ptable.lock);
+  return -1;  // Return -1 if no corresponding process 
+}
+
+//prints process information, which includes name,pid,state and priority(nice value)
+//of each process.
+//if the pid is 0, print out all process' information.
+//Otherwise, print out corresponding process's information.
+//if there is no process corresponding to the pid, print out nothing.
+void
+ps(int pid)
+{
+  struct proc *p;
+  
+  // Print header of the table 
+  cprintf("name     pid     state       priority\n");
+
+  acquire(&ptable.lock);
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+    if(pid == 0 || p->pid == pid) { // If pid is 0, print all. Else print matching pid.
+      cprintf("%s     %d      %d       %d\n", p->name, p->pid, p->state, p->nice);
+    }
+  }
+  release(&ptable.lock);
+}
+
+
+
+

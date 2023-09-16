@@ -105,7 +105,7 @@ extern int sys_write(void);
 extern int sys_uptime(void);
 extern int sys_getnice(void);
 extern int sys_setnice(void);
-extern void sys_ps(void);
+extern int sys_ps(void);
 
 
 static int (*syscalls[])(void) = {
@@ -132,7 +132,7 @@ static int (*syscalls[])(void) = {
 [SYS_close]   sys_close,
 [SYS_getnice] sys_getnice,
 [SYS_setnice] sys_setnice,
-[SYS_ps] sys_ps,
+[SYS_ps]      sys_ps,
 };
 
 void
