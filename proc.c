@@ -584,11 +584,24 @@ void
 ps(int pid)
 {
   struct proc *p;
+   int existProcess = 0;  // flag to check if there's a process
   const char* stateNames[] = {"UNUSED", "EMBRYO", "SLEEPING", "RUNNABLE", "RUNNING", "ZOMBIE"};
   
-  // Print header of the table 
-  cprintf("name     pid    state     priority\n");
   acquire(&ptable.lock);
+
+  // Check if there's any process
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+    if(p->state != UNUSED && (pid == 0 || p->pid == pid)) {
+      existProcess = 1;
+      break;
+    }
+  }
+
+  // If there's any process, then print the header
+  if(existProcess) {
+    cprintf("%s     %s     %s     %s\n","name","pid","state","priority");
+  }
+
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
     if(p->state != UNUSED) {
      if(pid == 0 || p->pid == pid) { // If pid is 0, print all. Else print matching pid.

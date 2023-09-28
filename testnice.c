@@ -2,6 +2,7 @@
 #include "stat.h"
 #include "user.h"
 
+
 int main(void) {
     int pid;
     
@@ -31,6 +32,8 @@ int main(void) {
         printf(1, "Failed to get nice value.\n");
     }
 
+	printf(1, "call the ps given the pid 5(it should print nothing):\n");
+	ps(5);
+
     exit();
 }
-
