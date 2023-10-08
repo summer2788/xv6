@@ -543,7 +543,7 @@ getnice(int pid)
 
   acquire(&ptable.lock);
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
-    if(p->pid == pid) {
+    if(p->pid == pid && p->state != UNUSED) {
       release(&ptable.lock);
       return p->nice;
     }
@@ -565,7 +565,7 @@ setnice(int pid, int value)
 
   acquire(&ptable.lock);
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
-    if(p->pid == pid) {
+    if(p->pid == pid && p->state != UNUSED) {
       p->nice = value;
       release(&ptable.lock);
       return 0;  // Return 0 for success
@@ -599,13 +599,13 @@ ps(int pid)
 
   // If there's any process, then print the header
   if(existProcess) {
-    cprintf("%s     %s     %s     %s\n","name","pid","state","priority");
+    cprintf("%s\t%s\t%s\t%s\n","name","pid","state","priority");
   }
 
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
     if(p->state != UNUSED) {
      if(pid == 0 || p->pid == pid) { // If pid is 0, print all. Else print matching pid.
-      cprintf("%s     %d     %s     %d\n", p->name, p->pid, stateNames[p->state], p->nice);   
+      cprintf("%s\t%d\t%s\t%d\n", p->name,p->pid,stateNames[p->state],p->nice);   
      }
    }
   }
