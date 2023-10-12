@@ -14,6 +14,20 @@ struct {
 
 static struct proc *initproc;
 
+
+const int sched_prio_to_weight[40] = {
+ /* -20 */     88761,     71755,     56483,     46273,     36291,
+ /* -15 */     29154,     23254,     18705,     14949,     11916,
+ /* -10 */      9548,      7620,      6100,      4904,      3906,
+ /*  -5 */      3121,      2501,      1991,      1586,      1277,
+ /*   0 */      1024,       820,       655,       526,       423,
+ /*   5 */       335,       272,       215,       172,       137,
+ /*  10 */       110,        87,        70,        56,        45,
+ /*  15 */        36,        29,        23,        18,        15,
+};
+
+
+
 int nextpid = 1;
 extern void forkret(void);
 extern void trapret(void);
@@ -320,41 +334,47 @@ wait(void)
 //  - swtch to start running that process
 //  - eventually that process transfers control
 //      via swtch back to the scheduler.
-void
-scheduler(void)
-{
+
+
+
+void scheduler(void) {
   struct proc *p;
+  struct proc *min_vruntime_proc;
   struct cpu *c = mycpu();
   c->proc = 0;
-  
-  for(;;){
-    // Enable interrupts on this processor.
-    sti();
 
-    // Loop over process table looking for process to run.
+  for(;;){
+    sti();
+    min_vruntime_proc = 0;
+
     acquire(&ptable.lock);
+
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->state != RUNNABLE)
         continue;
 
-      // Switch to chosen process.  It is the process's job
-      // to release ptable.lock and then reacquire it
-      // before jumping back to us.
-      c->proc = p;
-      switchuvm(p);
-      p->state = RUNNING;
+      // Pick the process with the minimum vruntime
+      if(!min_vruntime_proc || p->vruntime < min_vruntime_proc->vruntime)
+        min_vruntime_proc = p;
+    }
 
-      swtch(&(c->scheduler), p->context);
+    if(min_vruntime_proc){
+	  //change the current process running on this CPU
+      c->proc = min_vruntime_proc; 
+      //switch to the user space memory of the selected process.
+      switchuvm(min_vruntime_proc); 
+      min_vruntime_proc->state = RUNNING;
+      swtch(&(c->scheduler), min_vruntime_proc->context); 
       switchkvm();
 
-      // Process is done running for now.
-      // It should have changed its p->state before coming back.
       c->proc = 0;
     }
-    release(&ptable.lock);
 
+    release(&ptable.lock);
   }
 }
+
+
 
 // Enter scheduler.  Must hold only ptable.lock
 // and have changed proc->state. Saves and restores
