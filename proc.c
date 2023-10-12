@@ -340,11 +340,29 @@ wait(void)
 
 
 
+
+// This function returns the total weight of all RUNNABLE processes.
+// This function only run within scheduler() function 
+int compute_total_weight_of_runnable_processes() {
+    struct proc *pr;
+    int total_weight = 0;
+
+    for(pr = ptable.proc; pr < &ptable.proc[NPROC]; pr++) {
+        if(pr->state == RUNNABLE) {
+            total_weight += pr->weight;
+        }
+    }
+
+    return total_weight;
+}
+
+
 void scheduler(void) {
   struct proc *p;
   struct proc *min_vruntime_proc;
   struct cpu *c = mycpu();
   c->proc = 0;
+  int total_weight = 0;
 
   for(;;){
     sti();
@@ -355,19 +373,30 @@ void scheduler(void) {
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->state != RUNNABLE)
         continue;
-
-      // Pick the process with the minimum vruntime
+	
+	//calculate total weight of runnable processes 
+    
+    // Traverse the ptable to find the process with the minimum vruntime
+    // Pick the process with the minimum vruntime
       if(!min_vruntime_proc || p->vruntime < min_vruntime_proc->vruntime)
         min_vruntime_proc = p;
     }
-
+	// If we found a process to run
     if(min_vruntime_proc){
+    
+	 // Calculate time slice 
+	 int total_weight = compute_total_weight_of_runnable_processes(); 
+	 min_vruntime_proc->timeslice = (10 * min_vruntime_proc->weight) / total_weight;
+	 
 	  //change the current process running on this CPU
       c->proc = min_vruntime_proc; 
       //switch to the user space memory of the selected process.
       switchuvm(min_vruntime_proc); 
+      //change the process's state
       min_vruntime_proc->state = RUNNING;
+      //actual context switching 
       swtch(&(c->scheduler), min_vruntime_proc->context); 
+      //change to the kernel space 
       switchkvm();
 
       c->proc = 0;
