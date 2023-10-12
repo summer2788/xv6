@@ -54,6 +54,26 @@ trap(struct trapframe *tf)
       wakeup(&ticks);
       release(&tickslock);
     }
+
+     // If there is a current process
+    if(myproc()) {
+        // Calculate the elapsed runtime
+        int elapsed_runtime = ticks - myproc()->cpu_start_time;
+
+        // Update the process's runtime
+        myproc()->runtime++;
+        
+        // Update vruntime.
+        myproc()->vruntime += (1024 * 1) / myproc()->weight;
+        
+        
+        // Check if the task has run more than its timeslice
+        if(elapsed_runtime >= myproc()->timeslice) {
+            yield();  // Force the process to yield the CPU
+        }
+    }
+
+
     lapiceoi();
     break;
   case T_IRQ0 + IRQ_IDE:

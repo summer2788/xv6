@@ -31,6 +31,7 @@ const int sched_prio_to_weight[40] = {
 int nextpid = 1;
 extern void forkret(void);
 extern void trapret(void);
+extern int ticks;
 
 static void wakeup1(void *chan);
 
@@ -387,7 +388,7 @@ void scheduler(void) {
 	 // Calculate time slice 
 	 int total_weight = compute_total_weight_of_runnable_processes(); 
 	 min_vruntime_proc->timeslice = (10 * min_vruntime_proc->weight) / total_weight;
-	 
+	 min_vruntime_proc->cpu_start_time = ticks;
 	  //change the current process running on this CPU
       c->proc = min_vruntime_proc; 
       //switch to the user space memory of the selected process.
