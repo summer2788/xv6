@@ -103,7 +103,10 @@ found:
   p->state = EMBRYO;
   p->pid = nextpid++;
   p->nice = 20; //set default nice value.
-
+  p->weight = sched_prio_to_weight[p->nice];  // Using the provided array, index 20 for default nice value
+  p->vruntime = 0;  // Start with 0 vruntime
+  p->runtime = 0;   // Start with 0 runtime
+  p->timeslice = 0;  // Will be calculated later in scheduler	
   release(&ptable.lock);
 
   // Allocate kernel stack.

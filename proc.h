@@ -53,6 +53,7 @@ struct proc {
   int weight;             // Weight of process
   int vruntime;           // Virtual runtime
   int runtime;            // Actual runtime
+  int timeslice;          // time slice
 };
 
 // Process memory is laid out contiguously, low addresses first:
