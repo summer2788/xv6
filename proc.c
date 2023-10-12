@@ -505,6 +505,23 @@ sleep(void *chan, struct spinlock *lk)
   }
 }
 
+//This function only for wakeup1
+int compute_min_vruntime() {
+  struct proc *p;
+  int min_vruntime = INT_MAX;
+
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+    if(p->state == RUNNABLE && p->vruntime < min_vruntime)
+      min_vruntime = p->vruntime;
+	
+  if(min_vruntime == INT_MAX)   // no runnable process 
+	 return 0;   //set 0
+	
+
+  return min_vruntime - 1;  //min vruntim -1 
+}
+
+
 //PAGEBREAK!
 // Wake up all processes sleeping on chan.
 // The ptable lock must be held.
@@ -514,8 +531,11 @@ wakeup1(void *chan)
   struct proc *p;
 
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-    if(p->state == SLEEPING && p->chan == chan)
+    if(p->state == SLEEPING && p->chan == chan){
       p->state = RUNNABLE;
+      //update vruntime based on the minumum vruntime of runnable processes
+      p->vruntime = compute_min_vruntime();
+    }
 }
 
 // Wake up all processes sleeping on chan.
