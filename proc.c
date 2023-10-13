@@ -221,6 +221,7 @@ fork(void)
   np->sz = curproc->sz;
   np->parent = curproc;
   np->vruntime = curproc->vruntime;
+  np->nice  = curproc->nice;
   *np->tf = *curproc->tf;
 
   // Clear %eax so that fork returns 0 in the child.
