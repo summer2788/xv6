@@ -389,12 +389,12 @@ void scheduler(void) {
 	// If we found a process to run
     if(min_vruntime_proc){
     
-	 // Calculate time slice 
-	 int total_weight = compute_total_weight_of_runnable_processes(); 
-	 min_vruntime_proc->timeslice = (10000 * min_vruntime_proc->weight) / total_weight;
-	 min_vruntime_proc->cpu_start_time = ticks;
-	  //change the current process running on this CPU
+      // Calculate time slice 
+      int total_weight = compute_total_weight_of_runnable_processes(); 
+      min_vruntime_proc->timeslice = (10000 * min_vruntime_proc->weight) / total_weight;
+      //change the current process running on this CPU
       c->proc = min_vruntime_proc; 
+      c->proc->cpu_start_time = ticks;
       //switch to the user space memory of the selected process.
       switchuvm(min_vruntime_proc); 
       //change the process's state
@@ -537,9 +537,9 @@ wakeup1(void *chan)
 
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     if(p->state == SLEEPING && p->chan == chan){
-      p->state = RUNNABLE;
       //update vruntime based on the minumum vruntime of runnable processes
       p->vruntime = compute_min_vruntime();
+      p->state = RUNNABLE;
     }
 }
 
@@ -746,7 +746,7 @@ ps(int pid)
     if(p->state != UNUSED) {
      if(pid == 0 || p->pid == pid) { // If pid is 0, print all. Else print matching pid.iii
 	     print_ps(p->name, p->pid, stateNames[p->state], p->nice,
-             p->runtime / p->weight, p->runtime,
+             p->runtime / sched_prio_to_weight[p->nice], p->runtime,
              p->vruntime,0);
      }
    }

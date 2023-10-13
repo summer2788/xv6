@@ -23,12 +23,14 @@ int main(void){
     }
     if(child==0){
         setnice(parent,39);
+	printf(1,"child ! \n\n");
         ps(0);
         printf(1,"\n");
         exit();
     }
     else{
         setnice(child,39);
+	printf(1,"parent ! \n\n");
         ps(0);
         printf(1,"\n");
         wait();
