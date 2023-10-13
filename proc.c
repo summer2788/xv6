@@ -653,20 +653,45 @@ setnice(int pid, int value)
 
 //right above the ps function 
 void print_ps(const char *name, int pid, const char *state, int priority, 
-              int runtime_weight, int runtime, int vruntime) {
+              int runtime_weight, int runtime, int vruntime, int printHeader) {
     
-    char name_buf[11], pid_buf[6], state_buf[11], priority_buf[6], 
-         runtime_weight_buf[11], runtime_buf[11], vruntime_buf[11], tick_buf[11];
+    char name_buf[11], pid_buf[6], state_buf[11], priority_buf[11], 
+         runtime_weight_buf[15], runtime_buf[11], vruntime_buf[11], tick_buf[11];
+
+         
+    char padded[20]; // Assuming no strings will exceed this length
+
+	 if (printHeader) {
+        padstring(padded, "name", 10);
+        cprintf("%s", padded);
+        padstring(padded, "pid", 5);
+        cprintf("%s", padded);
+        padstring(padded, "state", 10);
+        cprintf("%s", padded);
+        padstring(padded, "priority", 10);
+        cprintf("%s", padded);
+        padstring(padded, "runtime/weight", 15);
+        cprintf("%s", padded);
+        padstring(padded, "runtime", 10);
+        cprintf("%s", padded);
+        padstring(padded, "vruntime", 10);
+        cprintf("%s", padded);
+        cprintf("%s  ", "tick");
+	itoa(ticks*1000, tick_buf, 10);
+	padstring(tick_buf, tick_buf, 10);
+	cprintf("%s\n", tick_buf);
+	return;
+    }
 
     // Convert numbers to string and pad
     itoa(pid, pid_buf, 10);
     padstring(pid_buf, pid_buf, 5);
     
     itoa(priority, priority_buf, 10);
-    padstring(priority_buf, priority_buf, 5);
+    padstring(priority_buf, priority_buf, 10);
     
     itoa(runtime_weight, runtime_weight_buf, 10);
-    padstring(runtime_weight_buf, runtime_weight_buf, 10);
+    padstring(runtime_weight_buf, runtime_weight_buf, 15);
 
     itoa(runtime, runtime_buf, 10);
     padstring(runtime_buf, runtime_buf, 10);
@@ -679,8 +704,9 @@ void print_ps(const char *name, int pid, const char *state, int priority,
     padstring(name_buf, name, 10);
     padstring(state_buf, state, 10);
 
+
     // Print the values using padded strings
-    printf(1, "%s %s %s %s %s %s %s\n", 
+    cprintf("%s%s%s%s%s%s%s\n", 
             name_buf, pid_buf, state_buf, priority_buf, 
             runtime_weight_buf, runtime_buf, vruntime_buf);
 }
@@ -709,15 +735,16 @@ ps(int pid)
 
   // If there's any process, then print the header
   if(existProcess) {
-	   cprintf("name      pid       state     priority  runtime/weight runtime   vruntime  tick  %d\n", ticks*1000); 
+      print_ps(0, 0, 0, 0, 0, 0, 0, 1);
   }
+
 
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
     if(p->state != UNUSED) {
      if(pid == 0 || p->pid == pid) { // If pid is 0, print all. Else print matching pid.iii
 	     print_ps(p->name, p->pid, stateNames[p->state], p->nice,
              p->runtime * 1000 / p->weight, p->runtime * 1000,
-             p->vruntime * 1000, ticks * 1000);
+             p->vruntime * 1000,0);
      }
    }
   }
