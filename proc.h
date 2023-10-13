@@ -54,7 +54,7 @@ struct proc {
   int vruntime;           // Virtual runtime
   int runtime;            // Actual runtime
   int timeslice;          // time slice
-  int cpu_start_time;     // To trach when the process got the CPU
+  int cpu_start_time;     // To track when the process got the CPU
 };
 
 // Process memory is laid out contiguously, low addresses first:

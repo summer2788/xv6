@@ -61,10 +61,10 @@ trap(struct trapframe *tf)
         int elapsed_runtime = ticks - myproc()->cpu_start_time;
 
         // Update the process's runtime
-        myproc()->runtime++;
+        myproc()->runtime+=1000;
         
         // Update vruntime.
-        myproc()->vruntime += (1024 * 1) / myproc()->weight;
+        myproc()->vruntime += (1024 * 1000) / myproc()->weight;
         
         
         // Check if the task has run more than its timeslice

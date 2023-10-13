@@ -6,8 +6,9 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
-#include "limits.h"
 #include "stringutil.h" 
+
+#define INT_MAX 2147483647
 
 struct {
   struct spinlock lock;
@@ -353,7 +354,7 @@ int compute_total_weight_of_runnable_processes() {
 
     for(pr = ptable.proc; pr < &ptable.proc[NPROC]; pr++) {
         if(pr->state == RUNNABLE) {
-            total_weight += pr->weight;
+            total_weight += sched_prio_to_weight[pr->nice];
         }
     }
 
@@ -389,7 +390,7 @@ void scheduler(void) {
     
 	 // Calculate time slice 
 	 int total_weight = compute_total_weight_of_runnable_processes(); 
-	 min_vruntime_proc->timeslice = (10 * min_vruntime_proc->weight) / total_weight;
+	 min_vruntime_proc->timeslice = (10000 * min_vruntime_proc->weight) / total_weight;
 	 min_vruntime_proc->cpu_start_time = ticks;
 	  //change the current process running on this CPU
       c->proc = min_vruntime_proc; 
@@ -510,17 +511,18 @@ sleep(void *chan, struct spinlock *lk)
 //This function only for wakeup1
 int compute_min_vruntime() {
   struct proc *p;
-  int min_vruntime = INT_MAX;
+  int min_vruntime= INT_MAX;
 
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     if(p->state == RUNNABLE && p->vruntime < min_vruntime)
       min_vruntime = p->vruntime;
 	
   if(min_vruntime == INT_MAX)   // no runnable process 
-	 return 0;   //set 0
-	
+     return 0;   //set 0
+   
+  return min_vruntime - 1000;  //min vruntim -1000 militick 
+    
 
-  return min_vruntime - 1;  //min vruntim -1 
 }
 
 
@@ -743,8 +745,8 @@ ps(int pid)
     if(p->state != UNUSED) {
      if(pid == 0 || p->pid == pid) { // If pid is 0, print all. Else print matching pid.iii
 	     print_ps(p->name, p->pid, stateNames[p->state], p->nice,
-             p->runtime * 1000 / p->weight, p->runtime * 1000,
-             p->vruntime * 1000,0);
+             p->runtime / p->weight, p->runtime,
+             p->vruntime,0);
      }
    }
   }
