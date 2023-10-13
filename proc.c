@@ -6,6 +6,8 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
+#include "limits.h"
+#include "stringutil.h" 
 
 struct {
   struct spinlock lock;
@@ -31,7 +33,7 @@ const int sched_prio_to_weight[40] = {
 int nextpid = 1;
 extern void forkret(void);
 extern void trapret(void);
-extern int ticks;
+extern uint ticks;
 
 static void wakeup1(void *chan);
 
@@ -364,7 +366,6 @@ void scheduler(void) {
   struct proc *min_vruntime_proc;
   struct cpu *c = mycpu();
   c->proc = 0;
-  int total_weight = 0;
 
   for(;;){
     sti();
@@ -649,6 +650,41 @@ setnice(int pid, int value)
   return -1;  // Return -1 if no corresponding process 
 }
 
+
+//right above the ps function 
+void print_ps(const char *name, int pid, const char *state, int priority, 
+              int runtime_weight, int runtime, int vruntime) {
+    
+    char name_buf[11], pid_buf[6], state_buf[11], priority_buf[6], 
+         runtime_weight_buf[11], runtime_buf[11], vruntime_buf[11], tick_buf[11];
+
+    // Convert numbers to string and pad
+    itoa(pid, pid_buf, 10);
+    padstring(pid_buf, pid_buf, 5);
+    
+    itoa(priority, priority_buf, 10);
+    padstring(priority_buf, priority_buf, 5);
+    
+    itoa(runtime_weight, runtime_weight_buf, 10);
+    padstring(runtime_weight_buf, runtime_weight_buf, 10);
+
+    itoa(runtime, runtime_buf, 10);
+    padstring(runtime_buf, runtime_buf, 10);
+
+    itoa(vruntime, vruntime_buf, 10);
+    padstring(vruntime_buf, vruntime_buf, 10);
+
+
+    // Pad other strings
+    padstring(name_buf, name, 10);
+    padstring(state_buf, state, 10);
+
+    // Print the values using padded strings
+    printf(1, "%s %s %s %s %s %s %s\n", 
+            name_buf, pid_buf, state_buf, priority_buf, 
+            runtime_weight_buf, runtime_buf, vruntime_buf);
+}
+
 //prints process information, which includes name,pid,state and priority(nice value)
 //of each process.
 //if the pid is 0, print out all process' information.
@@ -673,13 +709,15 @@ ps(int pid)
 
   // If there's any process, then print the header
   if(existProcess) {
-    cprintf("%s\t%s\t%s\t%s\n","name","pid","state","priority");
+	   cprintf("name      pid       state     priority  runtime/weight runtime   vruntime  tick  %d\n", ticks*1000); 
   }
 
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
     if(p->state != UNUSED) {
-     if(pid == 0 || p->pid == pid) { // If pid is 0, print all. Else print matching pid.
-      cprintf("%s\t%d\t%s\t%d\n", p->name,p->pid,stateNames[p->state],p->nice);   
+     if(pid == 0 || p->pid == pid) { // If pid is 0, print all. Else print matching pid.iii
+	     print_ps(p->name, p->pid, stateNames[p->state], p->nice,
+             p->runtime * 1000 / p->weight, p->runtime * 1000,
+             p->vruntime * 1000, ticks * 1000);
      }
    }
   }
