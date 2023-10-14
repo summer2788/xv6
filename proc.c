@@ -108,7 +108,8 @@ found:
   p->pid = nextpid++;
   p->nice = 20; //set default nice value.
   p->weight = sched_prio_to_weight[p->nice];  // Using the provided array, index 20 for default nice value
-  p->vruntime = 0;  // Start with 0 vruntime
+  p->vruntime.high = 0;  // Start with 0 vruntime
+  p->vruntime.low =0; 
   p->runtime = 0;   // Start with 0 runtime
   p->timeslice = 0;  // Will be calculated later in scheduler	
   release(&ptable.lock);
@@ -383,7 +384,7 @@ void scheduler(void) {
     
     // Traverse the ptable to find the process with the minimum vruntime
     // Pick the process with the minimum vruntime
-      if(!min_vruntime_proc || p->vruntime < min_vruntime_proc->vruntime)
+      if(!min_vruntime_proc || compare(p->vruntime, min_vruntime_proc->vruntime)==1)
         min_vruntime_proc = p;
     }
 	// If we found a process to run
@@ -510,22 +511,33 @@ sleep(void *chan, struct spinlock *lk)
 }
 
 //This function only for wakeup1
-int compute_min_vruntime() {
-  struct proc *p;
-  int min_vruntime= INT_MAX;
+struct bigint compute_min_vruntime() {
+    struct proc *p;
+    struct bigint min_vruntime;
+    struct bigint temp_vruntime;
+    struct bigint zero = {0, 0};
+    struct bigint subtract_val = {0, 1000}; // Represents the value 1000
 
-  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-    if(p->state == RUNNABLE && p->vruntime < min_vruntime)
-      min_vruntime = p->vruntime;
-	
-  if(min_vruntime == INT_MAX)   // no runnable process 
-     return 0;   //set 0
-   
-  return min_vruntime - 1000;  //min vruntim -1000 militick 
-    
+    // Initialize min_vruntime to the low maximum value
+    min_vruntime.high = 9999999;
+    min_vruntime.low = 9999999;
 
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+        if(p->state == RUNNABLE && compare(p->vruntime, min_vruntime) == 1) { // if p->vruntime < min_vruntime
+            min_vruntime = p->vruntime;
+        }
+    }
+
+    // Check if min_vruntime is still at its initial maximum value, which means no runnable process
+    temp_vruntime.high = 9999999;
+    temp_vruntime.low = 9999999;
+
+    if(compare(min_vruntime, temp_vruntime) == 2) {  // if min_vruntime == INT_MAX
+        return zero;   //set 0
+    }
+
+    return subtract(min_vruntime, subtract_val);  // min_vruntime - 1000 militick
 }
-
 
 //PAGEBREAK!
 // Wake up all processes sleeping on chan.
@@ -654,12 +666,35 @@ setnice(int pid, int value)
 }
 
 
+
+void bigint_to_str(struct bigint num, char *buf) {
+    if (num.high == 0) {
+        itoa(num.low, buf, 10);
+    } else {
+        char low_buf[8]; // Assuming the low part has 7 digits at max.
+        itoa(num.low, low_buf, 10);
+        itoa(num.high, buf, 10);
+        // concatenate low_buf to buf
+        int i = 0, j = 0;
+        while (buf[i] != '\0') {
+            i++;
+        }
+        while (low_buf[j] != '\0') {
+            buf[i] = low_buf[j];
+            i++; j++;
+        }
+        buf[i] = '\0';
+    }
+}
+
+
+
 //right above the ps function 
 void print_ps(const char *name, int pid, const char *state, int priority, 
-              int runtime_weight, int runtime, int vruntime, int printHeader) {
+              int runtime_weight, int runtime, struct bigint vruntime, int printHeader) {
     
     char name_buf[11], pid_buf[6], state_buf[11], priority_buf[11], 
-         runtime_weight_buf[15], runtime_buf[11], vruntime_buf[11], tick_buf[11];
+         runtime_weight_buf[15], runtime_buf[11], vruntime_buf[15], tick_buf[11];
 
          
     char padded[20]; // Assuming no strings will exceed this length
@@ -677,7 +712,7 @@ void print_ps(const char *name, int pid, const char *state, int priority,
         cprintf("%s", padded);
         padstring(padded, "runtime", 10);
         cprintf("%s", padded);
-        padstring(padded, "vruntime", 10);
+        padstring(padded, "vruntime", 14);
         cprintf("%s", padded);
         cprintf("%s  ", "tick");
 	itoa(ticks*1000, tick_buf, 10);
@@ -699,8 +734,8 @@ void print_ps(const char *name, int pid, const char *state, int priority,
     itoa(runtime, runtime_buf, 10);
     padstring(runtime_buf, runtime_buf, 10);
 
-    itoa(vruntime, vruntime_buf, 10);
-    padstring(vruntime_buf, vruntime_buf, 10);
+    bigint_to_str(vruntime, vruntime_buf);
+    padstring(vruntime_buf, vruntime_buf, 14);
 
 
     // Pad other strings
@@ -738,7 +773,7 @@ ps(int pid)
 
   // If there's any process, then print the header
   if(existProcess) {
-      print_ps(0, 0, 0, 0, 0, 0, 0, 1);
+      print_ps(0, 0, 0, 0, 0, 0, p->vruntime, 1);
   }
 
 

@@ -1,4 +1,6 @@
 // Per-CPU state
+#include "bigint.h"
+
 struct cpu {
   uchar apicid;                // Local APIC ID
   struct context *scheduler;   // swtch() here to enter scheduler
@@ -51,7 +53,7 @@ struct proc {
   char name[16];               // Process name (debugging)
   int  nice;                   // nice value for priority
   int weight;             // Weight of process
-  int vruntime;           // Virtual runtime
+  struct bigint vruntime; // Virtual runtime
   int runtime;            // Actual runtime
   int timeslice;          // time slice
   int cpu_start_time;     // To track when the process got the CPU

@@ -1,49 +1,53 @@
-// bigint.c
-#include "types.h"
-#include "defs.h"
 #include "bigint.h"
-#define UINT_MAX 0xFFFFFFFF
-
 
 struct bigint add(struct bigint a, struct bigint b) {
-    uint sum_low = (uint) a.low + b.low;
-    int carry = sum_low < (uint) a.low;  // If overflow occurs, carry becomes 1
-    uint sum_high = (uint) a.high + b.high + carry;
-
     struct bigint result;
-    result.high = sum_high;
-    result.low = sum_low;
+
+    // Add the low parts
+    result.low = a.low + b.low;
+    
+    // Handle overflow of the `low` part
+    result.high = a.high + b.high;
+    if (result.low >= 10000000) {
+        result.low -= 10000000; // Keep only the least significant 10 digits
+        result.high++;             // Add the carry to the high part
+    }
+
     return result;
 }
 
 struct bigint subtract(struct bigint a, struct bigint b) {
-    int diff_low = a.low - b.low;
-    int diff_high = a.high - b.high;
+    struct bigint result;
 
-    if (diff_low < 0) {
-        diff_low += UINT_MAX;  // Adjust the low part
-        diff_high -= 1;       // Borrow from the high part
+    // Subtract the low parts
+    result.low = a.low - b.low;
+    
+    // Handle underflow of the `low` part
+    result.high = a.high - b.high;
+    if (result.low < 0) {
+        result.low += 10000000; // Compensate for the underflow
+        result.high--;           // Remove the borrow from the high part
     }
 
-    struct bigint result;
-    result.high = diff_high;
-    result.low = diff_low;
     return result;
 }
 
-
-int compare(struct bigint a, struct bigint b) {
-    if (a.high < b.high) {
-        return -1;
-    } else if (a.high > b.high) {
-        return 1;
-    } else {  // a.high == b.high
-        if ((uint)a.low < (uint)b.low) {
-            return -1;
-        } else if ((uint)a.low > (uint)b.low) {
-            return 1;
+int compare(struct bigint A, struct bigint B) {
+    // Compare the high parts
+    if (A.high > B.high) {
+        return 0; // A is bigger than B
+    } else if (A.high < B.high) {
+        return 1; // A is smaller than B
+    } 
+    // If the high parts are the same, compare the low parts
+    else {
+        if (A.low > B.low) {
+            return 0; // A is bigger than B
+        } else if (A.low < B.low) {
+            return 1; // A is smaller than B
         } else {
-            return 0;
+            return 2; // A and B are the same
         }
     }
 }
+

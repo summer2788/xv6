@@ -7,6 +7,7 @@
 #include "x86.h"
 #include "traps.h"
 #include "spinlock.h"
+#include "bigint.h"
 
 // Interrupt descriptor table (shared by all CPUs).
 struct gatedesc idt[256];
@@ -64,8 +65,11 @@ trap(struct trapframe *tf)
         myproc()->runtime+=1000;
         
         // Update vruntime.
-        myproc()->vruntime += (1024 * 1000) / myproc()->weight;
-        
+        struct bigint increment;
+        increment.high = 0;
+        increment.low = (1024 * 1000) / myproc()->weight;
+
+        myproc()->vruntime = add(myproc()->vruntime, increment);
         
         // Check if the task has run more than its timeslice
         if(elapsed_runtime >= myproc()->timeslice) {
