@@ -223,6 +223,7 @@ fork(void)
   np->parent = curproc;
   np->vruntime = curproc->vruntime;
   np->nice  = curproc->nice;
+  np->runtime = 0;
   *np->tf = *curproc->tf;
 
   // Clear %eax so that fork returns 0 in the child.
@@ -516,7 +517,6 @@ struct bigint compute_min_vruntime() {
     struct bigint min_vruntime;
     struct bigint temp_vruntime;
     struct bigint zero = {0, 0};
-    struct bigint subtract_val = {0, 1000}; // Represents the value 1000
 
     // Initialize min_vruntime to the low maximum value
     min_vruntime.high = 9999999;
@@ -536,7 +536,7 @@ struct bigint compute_min_vruntime() {
         return zero;   //set 0
     }
 
-    return subtract(min_vruntime, subtract_val);  // min_vruntime - 1000 militick
+    return min_vruntime;  // min_vruntime
 }
 
 //PAGEBREAK!
@@ -546,11 +546,20 @@ static void
 wakeup1(void *chan)
 {
   struct proc *p;
+  struct bigint zero = {0,0};
+  struct bigint adjustment_value;
 
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     if(p->state == SLEEPING && p->chan == chan){
       //update vruntime based on the minumum vruntime of runnable processes
       p->vruntime = compute_min_vruntime();
+      if(compare(p->vruntime, zero) != 2) {
+         // If p->vruntime is NOT zero
+         adjustment_value.high = 0;
+         adjustment_value.low = 1000 * 1024 / sched_prio_to_weight[p->nice];
+	 p->vruntime = subtract(p->vruntime, adjustment_value);
+      }
+
       p->state = RUNNABLE;
     }
 }
@@ -694,7 +703,7 @@ void print_ps(const char *name, int pid, const char *state, int priority,
               int runtime_weight, int runtime, struct bigint vruntime, int printHeader) {
     
     char name_buf[11], pid_buf[6], state_buf[11], priority_buf[11], 
-         runtime_weight_buf[15], runtime_buf[11], vruntime_buf[15], tick_buf[11];
+         runtime_weight_buf[17], runtime_buf[11], vruntime_buf[15], tick_buf[11];
 
          
     char padded[20]; // Assuming no strings will exceed this length
@@ -708,7 +717,7 @@ void print_ps(const char *name, int pid, const char *state, int priority,
         cprintf("%s", padded);
         padstring(padded, "priority", 10);
         cprintf("%s", padded);
-        padstring(padded, "runtime/weight", 15);
+        padstring(padded, "runtime/weight", 16);
         cprintf("%s", padded);
         padstring(padded, "runtime", 10);
         cprintf("%s", padded);
@@ -729,7 +738,7 @@ void print_ps(const char *name, int pid, const char *state, int priority,
     padstring(priority_buf, priority_buf, 10);
     
     itoa(runtime_weight, runtime_weight_buf, 10);
-    padstring(runtime_weight_buf, runtime_weight_buf, 15);
+    padstring(runtime_weight_buf, runtime_weight_buf, 16);
 
     itoa(runtime, runtime_buf, 10);
     padstring(runtime_buf, runtime_buf, 10);
@@ -744,8 +753,8 @@ void print_ps(const char *name, int pid, const char *state, int priority,
 
 
     // Print the values using padded strings
-    cprintf("%s%s%s%s%s%s%s\n", 
-            name_buf, pid_buf, state_buf, priority_buf, 
+    cprintf("%s%s%s%s%s%s%s\n",
+            name_buf, pid_buf, state_buf, priority_buf,
             runtime_weight_buf, runtime_buf, vruntime_buf);
 }
 
@@ -790,5 +799,52 @@ ps(int pid)
 }
 
 
+// This is a simplified version and may not include all error checks and functionality
+uint mmap(uint addr, int length, int prot, int flags, int fd, int offset) {
+  // addr must be page aligned, length must be multiple of page size
+  if (addr % PGSIZE != 0 || length % PGSIZE != 0) {
+    return 0; // Failure
+  }
+
+  struct proc *p = myproc();
+  uint start_addr = MMAPBASE + addr;
+
+  // Ensure that the mapping doesn't overlap existing mappings (omitted for brevity)
+
+  // Find a free mmap_area structure to use
+  struct mmap_area *mmap = 0;
+  for (int i = 0; i < MAX_MMAP_AREA; i++) {
+    if (mmap_array[i].addr == 0) {
+      mmap = &mmap_array[i];
+      break;
+    }
+  }
+  if (mmap == 0) {
+    return 0; // No free mmap_area structure available
+  }
+
+  // Initialize the mmap_area structure
+  mmap->addr = start_addr;
+  mmap->length = length;
+  mmap->prot = prot;
+  mmap->flags = flags;
+  mmap->offset = offset;
+  mmap->p = p;
+
+  if (flags & MAP_ANONYMOUS) {
+    // Handle anonymous mapping
+  } else {
+    // Handle file-backed mapping
+    struct file *f = p->ofile[fd];
+    if (f == 0 || offset < 0) {
+      return 0; // Failure
+    }
+    mmap->f = filedup(f);
+  }
+
+  // Implement actual memory mapping logic (omitted for brevity)
+
+  return start_addr; // Success, return start address of the mapping
+}
 
 

@@ -57,7 +57,7 @@ trap(struct trapframe *tf)
     }
 
      // If there is a current process
-    if(myproc()) {
+    if(myproc() && myproc()->state == RUNNING) {
         // Calculate the elapsed runtime
         int elapsed_runtime = ticks - myproc()->cpu_start_time;
 

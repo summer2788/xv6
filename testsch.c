@@ -22,15 +22,33 @@ int main(void){
         printf(1,"fork error!");
     }
     if(child==0){
+        // child logic 
         setnice(parent,39);
-	printf(1,"child ! \n\n");
+
+        // Simulate very long computation to increase vruntime
+        for(int i = 0; i < 10000; i++) {
+            for(int j = 0; j < 10000; j++) {
+                asm("nop");  // No operation, just to prevent loop optimization by the compiler
+            }
+        }
+
+        printf(1,"child ! \n");
         ps(0);
         printf(1,"\n");
-        exit();
+        exit();   
     }
     else{
+        // parent logic
         setnice(child,39);
-	printf(1,"parent ! \n\n");
+
+        // Simulate very long computation to increase vruntime
+        for(int i = 0; i < 10000; i++) {
+            for(int j = 0; j < 10000; j++) {
+                asm("nop");  // No operation, just to prevent loop optimization by the compiler
+            }
+        }
+
+        printf(1,"parent ! \n");
         ps(0);
         printf(1,"\n");
         wait();
@@ -39,7 +57,6 @@ int main(void){
     printf(1,"\n");
 
     printf(1, "===================== After fork ====================\n");
-    
     
     setnice(4,0);
     ps(0);
