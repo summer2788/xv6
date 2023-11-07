@@ -944,3 +944,71 @@ uint mmap(uint addr, int length, int prot, int flags, int fd, int offset)
     return start_addr; // Return the start address of the mapping area
 }
 
+int handle_page_fault(struct trapframe *tf)
+{
+    uint fault_addr = rcr2(); // Step 1: Get faulting address
+    int write = tf->err & 2;  // Step 2: Get write flag
+    struct mmap_area *mmap = 0;
+
+    // Step 3: Find corresponding mmap_area
+    for (int i = 0; i < MAX_MMAP_AREA; i++)
+    {
+        if (mmap_array[i].addr <= fault_addr &&
+            fault_addr < mmap_array[i].addr + mmap_array[i].length)
+        {
+            mmap = &mmap_array[i];
+            break;
+        }
+    }
+    if (!mmap)
+    {
+        return -1; // Failed, no corresponding mmap_area
+    }
+
+    // Step 4: Write check
+    if (write && !(mmap->prot & PROT_WRITE))
+    {
+        return -1; // Failed, write access to a write-protected area
+    }
+
+    // Step 5: Handle the page fault
+    // 5.1 Allocate a new physical page
+    char *mem = kalloc();
+    if (!mem)
+    {
+        return -1; // Failed, cannot allocate memory
+    }
+    memset(mem, 0, PGSIZE); // 5.2 Fill new page with 0
+
+    if (!(mmap->flags & MAP_ANONYMOUS))
+    {
+        // 5.3 If it is file mapping, read file into the physical page with offset
+        begin_op();
+        ilock(mmap->f->ip);
+        if (readi(mmap->f->ip, mem, mmap->offset + (fault_addr - mmap->addr), PGSIZE) != PGSIZE)
+        {
+            iunlock(mmap->f->ip);
+            end_op();
+            kfree(mem);
+            return -1; // Failed, error while reading file
+        }
+        iunlock(mmap->f->ip);
+        end_op();
+    }
+    // Otherwise, it's an anonymous mapping, just use the zero-filled page.
+    int perm = PTE_P; // PTE_P is the Present flag, which must always be set
+
+    if (mmap->prot & PROT_WRITE)
+    {
+        perm |= PTE_W; // Set the PTE_W flag if PROT_WRITE is set
+    }
+    // 5.4 Map the new page in the page table
+    if (mappages(myproc()->pgdir, (char *)PGROUNDDOWN(fault_addr), PGSIZE, V2P(mem), perm) < 0)
+    {
+        kfree(mem);
+        return -1; // Failed, error in mappages
+    }
+
+    return 1; // Succeed
+}
+

@@ -80,6 +80,12 @@ trap(struct trapframe *tf)
 
     lapiceoi();
     break;
+  case T_PGFLT:
+    if(handle_page_fault(tf)==-1){
+      // If handle_page_fault returns 0, it was not a valid page fault
+      myproc()->killed = 1;
+    }
+    break;
   case T_IRQ0 + IRQ_IDE:
     ideintr();
     lapiceoi();
