@@ -127,8 +127,8 @@ void 		ps(int pid);
 uint            mmap(uint addr, int length, int prot, int flags, int fd, int offset);
 int             mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm);
 int             handle_page_fault(struct trapframe *tf);
-
-
+int             munmap(uint addr);
+pte_t *         walkpgdir(pde_t *pgdir, const void *va, int alloc);
 // swtch.S
 void            swtch(struct context**, struct context*);
 

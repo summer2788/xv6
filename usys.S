@@ -33,4 +33,4 @@ SYSCALL(getnice)
 SYSCALL(setnice)
 SYSCALL(ps)
 SYSCALL(mmap)
-
+SYSCALL(munmap)

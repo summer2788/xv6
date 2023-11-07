@@ -1,8 +1,8 @@
 #include "types.h"
+#include "mmu.h"
 #include "defs.h"
 #include "param.h"
 #include "memlayout.h"
-#include "mmu.h"
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
@@ -1012,3 +1012,39 @@ int handle_page_fault(struct trapframe *tf)
     return 1; // Succeed
 }
 
+int munmap(uint addr) {
+  struct proc *p = myproc(); // Get current process
+  struct mmap_area *mmap = 0;
+
+  // Step 2: Find the corresponding mmap_area structure
+  for (int i = 0; i < MAX_MMAP_AREA; i++) {
+    if (mmap_array[i].addr == addr) {
+      mmap = &mmap_array[i];
+      break;
+    }
+  }
+
+  // If there is no mmap_area starting with the address, return -1
+  if (mmap == 0) {
+    return -1;
+  }
+
+  // Step 3 & 4: Free any allocated physical pages and remove mmap_area structure
+  for (int i = 0; i < mmap->length; i += PGSIZE) {
+    char *mem = (char*)(mmap->addr + i);
+    pte_t *pte = walkpgdir(p->pgdir, mem, 0);
+    if (pte && (*pte & PTE_P)) {
+      char *v = P2V(PTE_ADDR(*pte));
+      memset(v, 1, PGSIZE); // Fill with 1s before freeing
+      kfree(v);
+      *pte = 0;
+    }
+  }
+  // Invalidate the TLB for this process after unmapping pages
+  switchuvm(p);
+
+  // Step 5: Clear the mmap_area structure
+  memset(mmap, 0, sizeof(*mmap));
+
+  return 1; // Success
+}
