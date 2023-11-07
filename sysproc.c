@@ -7,6 +7,7 @@
 #include "memlayout.h"
 #include "mmu.h"
 #include "proc.h"
+extern int free_page_count;
 
 int
 sys_fork(void)
@@ -152,3 +153,10 @@ sys_munmap(void)
     return -1;
   return munmap(addr);
 }
+
+int
+sys_freemem(void)
+{
+  return free_page_count;
+}
+

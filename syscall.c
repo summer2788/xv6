@@ -108,6 +108,7 @@ extern int sys_setnice(void);
 extern int sys_ps(void);
 extern int sys_mmap(void);
 extern int sys_munmap(void);
+extern int sys_freemem(void);
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -135,7 +136,8 @@ static int (*syscalls[])(void) = {
 [SYS_setnice] sys_setnice,
 [SYS_ps]      sys_ps,
 [SYS_mmap]    sys_mmap,
-[SYS_munmap]   sys_munmap,
+[SYS_munmap]  sys_munmap,
+[SYS_freemem] sys_freemem,
 };
 
 void
