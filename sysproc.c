@@ -1,4 +1,5 @@
 #include "types.h"
+#include "mmap.h"
 #include "x86.h"
 #include "defs.h"
 #include "date.h"
@@ -126,14 +127,21 @@ sys_ps(void)
 int
 sys_mmap(void)
 {
-    uint addr;
-    int length, prot, flags, fd, offset;
-    if(argint(0, &addr) < 0 || argint(1, &length) < 0 || argint(2, &prot) || argint(3, &flags) || argint(4, &fd) || argint(5, &offset))
-        return -1;
-    return mmap(addr, length, prot, flags, fd, offset);
+  int addr;
+  int length, prot, flags, fd, offset;
+
+  // Fetch the arguments from the system call
+  if(argint(0, &addr) < 0 ||   
+     argint(1, &length) < 0 ||
+     argint(2, &prot) < 0 ||
+     argint(3, &flags) < 0 ||
+     argint(4, &fd) < 0 ||
+     argint(5, &offset) < 0) {
+    return -1; // Return -1 on failure to fetch any argument
+  }
+
+  // Call the mmap function implemented in proc.c or another file
+  return mmap(addr, length, prot, flags, fd, offset);
 }
-
-
-
 
 

@@ -5,11 +5,13 @@
 #include "mmu.h"
 #include "proc.h"
 #include "x86.h"
+#include "mmap.h"
 
 static void startothers(void);
 static void mpmain(void)  __attribute__((noreturn));
 extern pde_t *kpgdir;
 extern char end[]; // first address after kernel loaded from ELF file
+struct mmap_area mmap_array[MAX_MMAP_AREA]; // mmap array
 
 // Bootstrap processor starts running C code here.
 // Allocate a real stack and switch to it, first
@@ -35,6 +37,11 @@ main(void)
   kinit2(P2V(4*1024*1024), P2V(PHYSTOP)); // must come after startothers()
   userinit();      // first user process
   mpmain();        // finish this processor's setup
+  // Initialize the global mmap_areas array
+  for(int i = 0; i < MAX_MMAP_AREA; i++) {
+    mmap_array[i].addr = 0; // 0 indicates the mmap_area is free
+    mmap_array[i].f = 0;    // Initialize other fields as necessary.
+  }
 }
 
 

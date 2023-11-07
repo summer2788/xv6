@@ -7,7 +7,10 @@
 #include "proc.h"
 #include "spinlock.h"
 #include "stringutil.h" 
-
+#include "mmap.h"
+#include "sleeplock.h"
+#include "fs.h"
+#include "file.h"
 #define INT_MAX 2147483647
 
 struct {
@@ -799,52 +802,145 @@ ps(int pid)
 }
 
 
-// This is a simplified version and may not include all error checks and functionality
-uint mmap(uint addr, int length, int prot, int flags, int fd, int offset) {
-  // addr must be page aligned, length must be multiple of page size
-  if (addr % PGSIZE != 0 || length % PGSIZE != 0) {
-    return 0; // Failure
-  }
-
-  struct proc *p = myproc();
-  uint start_addr = MMAPBASE + addr;
-
-  // Ensure that the mapping doesn't overlap existing mappings (omitted for brevity)
-
-  // Find a free mmap_area structure to use
-  struct mmap_area *mmap = 0;
-  for (int i = 0; i < MAX_MMAP_AREA; i++) {
-    if (mmap_array[i].addr == 0) {
-      mmap = &mmap_array[i];
-      break;
+uint mmap(uint addr, int length, int prot, int flags, int fd, int offset)
+{
+    // addr must be page aligned, length must be multiple of page size
+    if (addr % PGSIZE != 0 || length % PGSIZE != 0)
+    {
+        return 0; // Failure
     }
-  }
-  if (mmap == 0) {
-    return 0; // No free mmap_area structure available
-  }
 
-  // Initialize the mmap_area structure
-  mmap->addr = start_addr;
-  mmap->length = length;
-  mmap->prot = prot;
-  mmap->flags = flags;
-  mmap->offset = offset;
-  mmap->p = p;
+    struct proc *p = myproc();
+    uint start_addr = MMAPBASE + addr;
+    int perm = PTE_U; // User bit must be set for user pages
+    if (prot & PROT_READ)
+        perm |= PTE_P; // Present
+    if (prot & PROT_WRITE)
+        perm |= PTE_W; // Writable
+    struct file *f;
 
-  if (flags & MAP_ANONYMOUS) {
-    // Handle anonymous mapping
-  } else {
-    // Handle file-backed mapping
-    struct file *f = p->ofile[fd];
-    if (f == 0 || offset < 0) {
-      return 0; // Failure
+    // Ensure that the mapping doesn't overlap existing mappings
+    // [Omitted: Check for overlap with existing mmap areas or other segments.]
+
+    // Find a free mmap_area structure to use
+    struct mmap_area *mmap = 0;
+    for (int i = 0; i < MAX_MMAP_AREA; i++)
+    {
+        if (mmap_array[i].addr == 0)
+        {
+            mmap = &mmap_array[i];
+            break;
+        }
     }
-    mmap->f = filedup(f);
-  }
+    if (mmap == 0)
+    {
+        return 0; // No free mmap_area structure available
+    }
 
-  // Implement actual memory mapping logic (omitted for brevity)
+    // Whether 'MAP_POPULATE' is given, the case is separated.
+    if (flags & MAP_POPULATE)
+    {
+        // Allocate the page from physical memory and map it
+        if (fd == -1 && !(flags & MAP_ANONYMOUS))
+        {
+            return 0; // Error, MAP_POPULATE without MAP_ANONYMOUS requires a valid fd
+        }
 
-  return start_addr; // Success, return start address of the mapping
+        if (!(flags & MAP_ANONYMOUS))
+        {
+            // This is a file-backed mapping
+            if ((f = p->ofile[fd]) == 0)
+                return 0; // The file descriptor is not open
+
+            begin_op();
+            ilock(f->ip);
+            // Check file permissions here (implementation details omitted)
+            if (prot & PROT_WRITE)
+            {
+                // Trying to map the file as writable, ensure it's not opened as read-only
+                if (f->readable == 0)
+                {
+                    iunlock(f->ip);
+                    end_op();
+                    return 0; // Error, the file is not writable
+                }
+            }
+
+            if (prot & PROT_READ)
+            {
+                // Trying to map the file as readable, ensure it's not opened as write-only
+                if (f->writable == 0)
+                {
+                    iunlock(f->ip);
+                    end_op();
+                    return 0; // Error, the file is not readable
+                }
+            }
+
+            // Map pages for the required length
+            for (int i = 0; i < length; i += PGSIZE)
+            {
+                char *mem = kalloc();
+                if (mem == 0)
+                {
+                    iunlock(f->ip);
+                    end_op();
+                    return 0; // Failed to allocate memory
+                }
+
+                memset(mem, 0, PGSIZE);
+                if (readi(f->ip, mem, offset + i, PGSIZE) != PGSIZE)
+                {
+                    kfree(mem);
+                    iunlock(f->ip);
+                    end_op();
+                    return 0; // Error reading from file
+                }
+
+                if (mappages(p->pgdir, (char *)(start_addr + i), PGSIZE, V2P(mem), perm) < 0)
+                {
+                    kfree(mem);
+                    iunlock(f->ip);
+                    end_op();
+                    return 0; // Failed to map pages
+                }
+            }
+            mmap->f = f;
+            iunlock(f->ip);
+            end_op();
+        }
+        else
+        {
+            // This is an anonymous mapping, populate it with zeroed pages
+            for (int i = 0; i < length; i += PGSIZE)
+            {
+                char *mem = kalloc();
+                if (mem == 0)
+                    return 0; // Failed to allocate memory
+                memset(mem, 0, PGSIZE);
+                if (mappages(p->pgdir, (char *)(start_addr + i), PGSIZE, V2P(mem), perm) < 0)
+                {
+                    kfree(mem);
+                    return 0; // Failed to map pages
+                }
+            }
+        }
+    }
+    else
+    {
+        // MAP_POPULATE is not given, so just reserve the address space
+        // The actual page allocation will be handled lazily (on page fault)
+        // [Omitted: Logic to reserve address space without populating pages]
+    }
+
+    // allocate the mmap_area structure
+    mmap->addr = start_addr;
+    mmap->length = length;
+    mmap->prot = prot;
+    mmap->flags = flags;
+    mmap->offset = offset;
+    mmap->p = p;
+
+    return start_addr; // Return the start address of the mapping area
 }
-
 

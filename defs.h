@@ -123,6 +123,8 @@ void            yield(void);
 int             getnice(int pid);
 int		setnice(int pid, int value);
 void 		ps(int pid);
+uint            mmap(uint addr, int length, int prot, int flags, int fd, int offset);
+int             mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm);
 
 
 // swtch.S

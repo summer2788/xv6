@@ -26,7 +26,7 @@ int uptime(void);
 int getnice(int pid);
 int setnice(int pid, int value);
 void ps(int pid);
-
+uint mmap(uint addr, int length, int prot, int flags, int fd, int offset);
 
 
 // ulib.c
