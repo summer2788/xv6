@@ -246,7 +246,70 @@ fork(void)
   np->state = RUNNABLE;
 
   release(&ptable.lock);
+  
+  // Copy mmap areas from parent to child
+  for (i = 0; i < MAX_MMAP_AREA; i++) {
+    if (mmap_array[i].p == curproc) {
+      int child_mmap_index = -1;
+      for (int j = 0; j < MAX_MMAP_AREA; j++) {
+        if (mmap_array[j].p == 0) {
+        //find remaining area 
+          child_mmap_index = j;
+          break;
+        }
+      }
 
+      if (child_mmap_index == -1) {
+        // No free mmap area for the child. Cleanup and return error.
+        // cleanup code...
+        return -1;
+      }
+
+      // Duplicate mmap entry
+      mmap_array[child_mmap_index] = mmap_array[i];
+      mmap_array[child_mmap_index].p = np;
+
+      uint addr = mmap_array[child_mmap_index].addr;
+      int length = mmap_array[child_mmap_index].length;
+      int prot = mmap_array[child_mmap_index].prot;
+      int flags = mmap_array[child_mmap_index].flags;
+      struct file *file = mmap_array[child_mmap_index].f;
+      int offset = mmap_array[child_mmap_index].offset;
+
+      // Allocate and map pages depending on the flags
+      for (int page_offset = 0; page_offset < length; page_offset += PGSIZE) {
+        char *mem = kalloc();
+        if (!mem) {
+          // Handle memory allocation failure...
+          return -1;
+        }
+
+        if (flags & MAP_POPULATE) {
+          // File-backed mapping requested
+          if (file) {
+            int read_bytes = 0;
+            file->off = offset + page_offset;
+            read_bytes = fileread(file, mem, PGSIZE);
+            if (read_bytes <= 0) {
+              // Handle read failure...
+              kfree(mem);
+              return -1;
+            }
+          }
+        } else if (flags & MAP_ANONYMOUS) {
+          // Anonymous mapping requested; just zero out the memory
+          memset(mem, 0, PGSIZE);
+        }
+
+        // Map the new page into the child's page directory
+        if (mappages(np->pgdir, (char*)(addr + page_offset), PGSIZE, V2P(mem), prot | PTE_U) < 0) {
+          kfree(mem);  // Free the allocated memory on error
+          // Handle page mapping failure...
+          return -1;
+        }
+      }
+    }
+  }
   return pid;
 }
 
@@ -801,12 +864,12 @@ ps(int pid)
   release(&ptable.lock);
 }
 
-
 uint mmap(uint addr, int length, int prot, int flags, int fd, int offset)
 {
     // addr must be page aligned, length must be multiple of page size
     if (addr % PGSIZE != 0 || length % PGSIZE != 0)
     {
+        cprintf("error in mmap: addr or length not aligned\n");
         return 0; // Failure
     }
 
@@ -817,7 +880,12 @@ uint mmap(uint addr, int length, int prot, int flags, int fd, int offset)
         perm |= PTE_P; // Present
     if (prot & PROT_WRITE)
         perm |= PTE_W; // Writable
-    struct file *f;
+
+    struct file *f = 0;
+    if (fd == -1)
+        f = 0;
+    else 
+        f = p->ofile[fd];
 
     // Ensure that the mapping doesn't overlap existing mappings
     // [Omitted: Check for overlap with existing mmap areas or other segments.]
@@ -834,6 +902,7 @@ uint mmap(uint addr, int length, int prot, int flags, int fd, int offset)
     }
     if (mmap == 0)
     {
+        cprintf("error in mmap: no free mmap_area\n");
         return 0; // No free mmap_area structure available
     }
 
@@ -843,25 +912,21 @@ uint mmap(uint addr, int length, int prot, int flags, int fd, int offset)
         // Allocate the page from physical memory and map it
         if (fd == -1 && !(flags & MAP_ANONYMOUS))
         {
+            cprintf("error in mmap: MAP_POPULATE without MAP_ANONYMOUS requires a valid fd\n");
             return 0; // Error, MAP_POPULATE without MAP_ANONYMOUS requires a valid fd
         }
 
         if (!(flags & MAP_ANONYMOUS))
         {
             // This is a file-backed mapping
-            if ((f = p->ofile[fd]) == 0)
-                return 0; // The file descriptor is not open
 
-            begin_op();
-            ilock(f->ip);
             // Check file permissions here (implementation details omitted)
             if (prot & PROT_WRITE)
             {
                 // Trying to map the file as writable, ensure it's not opened as read-only
                 if (f->readable == 0)
                 {
-                    iunlock(f->ip);
-                    end_op();
+                    cprintf("error in mmap: file not writable\n");
                     return 0; // Error, the file is not writable
                 }
             }
@@ -871,8 +936,8 @@ uint mmap(uint addr, int length, int prot, int flags, int fd, int offset)
                 // Trying to map the file as readable, ensure it's not opened as write-only
                 if (f->writable == 0)
                 {
-                    iunlock(f->ip);
-                    end_op();
+
+                    cprintf("error in mmap: file not readable\n");
                     return 0; // Error, the file is not readable
                 }
             }
@@ -883,44 +948,40 @@ uint mmap(uint addr, int length, int prot, int flags, int fd, int offset)
                 char *mem = kalloc();
                 if (mem == 0)
                 {
-                    iunlock(f->ip);
-                    end_op();
+                    cprintf("error in mmap: failed to allocate memory\n");
                     return 0; // Failed to allocate memory
                 }
 
                 memset(mem, 0, PGSIZE);
-                if (readi(f->ip, mem, offset + i, PGSIZE) != PGSIZE)
-                {
-                    kfree(mem);
-                    iunlock(f->ip);
-                    end_op();
-                    return 0; // Error reading from file
-                }
+                fileread(f, mem, PGSIZE);
 
                 if (mappages(p->pgdir, (char *)(start_addr + i), PGSIZE, V2P(mem), perm) < 0)
                 {
                     kfree(mem);
-                    iunlock(f->ip);
-                    end_op();
+                    cprintf("error in mmap: failed to map pages\n");
                     return 0; // Failed to map pages
                 }
             }
             mmap->f = f;
-            iunlock(f->ip);
-            end_op();
         }
         else
         {
+
             // This is an anonymous mapping, populate it with zeroed pages
             for (int i = 0; i < length; i += PGSIZE)
             {
                 char *mem = kalloc();
                 if (mem == 0)
+                {
+                    cprintf("Failed to allocate memory1 \n");
                     return 0; // Failed to allocate memory
+                }
+
                 memset(mem, 0, PGSIZE);
                 if (mappages(p->pgdir, (char *)(start_addr + i), PGSIZE, V2P(mem), perm) < 0)
                 {
                     kfree(mem);
+                    cprintf("Failed to allocate memory2 \n");
                     return 0; // Failed to map pages
                 }
             }
@@ -940,9 +1001,15 @@ uint mmap(uint addr, int length, int prot, int flags, int fd, int offset)
     mmap->flags = flags;
     mmap->offset = offset;
     mmap->p = p;
+    if (f)
+    {
+        mmap->f = f;
+    }
 
     return start_addr; // Return the start address of the mapping area
 }
+
+
 
 int handle_page_fault(struct trapframe *tf)
 {

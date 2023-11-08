@@ -28,7 +28,7 @@ int setnice(int pid, int value);
 void ps(int pid);
 uint mmap(uint addr, int length, int prot, int flags, int fd, int offset);
 int freemem(void);
-
+int munmap(uint addr);
 
 // ulib.c
 int stat(const char*, struct stat*);
