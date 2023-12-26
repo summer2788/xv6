@@ -81,6 +81,7 @@ trap(struct trapframe *tf)
     lapiceoi();
     break;
   case T_PGFLT:
+    cprintf("page is not found\n");
     if(handle_page_fault(tf)==-1){
       // If handle_page_fault returns 0, it was not a valid page fault
       myproc()->killed = 1;

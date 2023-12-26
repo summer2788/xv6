@@ -924,7 +924,7 @@ uint mmap(uint addr, int length, int prot, int flags, int fd, int offset)
             if (prot & PROT_WRITE)
             {
                 // Trying to map the file as writable, ensure it's not opened as read-only
-                if (f->readable == 0)
+                if (f->writable == 0)
                 {
                     cprintf("error in mmap: file not writable\n");
                     return 0; // Error, the file is not writable
@@ -934,7 +934,7 @@ uint mmap(uint addr, int length, int prot, int flags, int fd, int offset)
             if (prot & PROT_READ)
             {
                 // Trying to map the file as readable, ensure it's not opened as write-only
-                if (f->writable == 0)
+                if (f->readable == 0)
                 {
 
                     cprintf("error in mmap: file not readable\n");
