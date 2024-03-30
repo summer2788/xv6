@@ -1,51 +1,77 @@
-NOTE: we have stopped maintaining the x86 version of xv6, and switched
-our efforts to the RISC-V version
-(https://github.com/mit-pdos/xv6-riscv.git)
+Certainly! Below is a README template for your xv6 modifications, which include system calls, CPU scheduling, memory mapping (`mmap`), and page replacement features. Adjust the content as needed to better fit your project specifics.
 
-xv6 is a re-implementation of Dennis Ritchie's and Ken Thompson's Unix
-Version 6 (v6).  xv6 loosely follows the structure and style of v6,
-but is implemented for a modern x86-based multiprocessor using ANSI C.
+---
 
-ACKNOWLEDGMENTS
+# Extended xv6 Operating System
 
-xv6 is inspired by John Lions's Commentary on UNIX 6th Edition (Peer
-to Peer Communications; ISBN: 1-57398-013-7; 1st edition (June 14,
-2000)). See also https://pdos.csail.mit.edu/6.828/, which
-provides pointers to on-line resources for v6.
+## Introduction
+This project extends the xv6 operating system with four key features: custom system calls, CPU scheduling enhancements, memory mapping (`mmap`), and page replacement strategies. These enhancements aim to improve the xv6 kernel's functionality and performance, offering a more sophisticated environment for educational purposes.
 
-xv6 borrows code from the following sources:
-    JOS (asm.h, elf.h, mmu.h, bootasm.S, ide.c, console.c, and others)
-    Plan 9 (entryother.S, mp.h, mp.c, lapic.c)
-    FreeBSD (ioapic.c)
-    NetBSD (console.c)
+## Table of Contents
+- [Installation](#installation)
+- [Features](#features)
+  - [System Calls](#system-calls)
+  - [CPU Scheduling](#cpu-scheduling)
+  - [Memory Mapping (Mmap)](#memory-mapping-mmap)
+  - [Page Replacement](#page-replacement)
+- [Usage](#usage)
+- [Building and Running](#building-and-running)
+- [Contributors](#contributors)
+- [License](#license)
 
-The following people have made contributions: Russ Cox (context switching,
-locking), Cliff Frey (MP), Xiao Yu (MP), Nickolai Zeldovich, and Austin
-Clements.
+## Installation
+Before you start, ensure you have a development environment set up for xv6. This typically requires:
+- GCC
+- QEMU
+- Make
+- Git (for version control)
 
-We are also grateful for the bug reports and patches contributed by Silas
-Boyd-Wickizer, Anton Burtsev, Cody Cutler, Mike CAT, Tej Chajed, eyalz800,
-Nelson Elhage, Saar Ettinger, Alice Ferrazzi, Nathaniel Filardo, Peter
-Froehlich, Yakir Goaron,Shivam Handa, Bryan Henry, Jim Huang, Alexander
-Kapshuk, Anders Kaseorg, kehao95, Wolfgang Keller, Eddie Kohler, Austin
-Liew, Imbar Marinescu, Yandong Mao, Matan Shabtay, Hitoshi Mitake, Carmi
-Merimovich, Mark Morrissey, mtasm, Joel Nider, Greg Price, Ayan Shafqat,
-Eldar Sehayek, Yongming Shen, Cam Tenny, tyfkda, Rafael Ubal, Warren
-Toomey, Stephen Tu, Pablo Ventura, Xi Wang, Keiichi Watanabe, Nicolas
-Wolovick, wxdao, Grant Wu, Jindong Zhang, Icenowy Zheng, and Zou Chang Wei.
+Clone the modified xv6 repository:
+```bash
+git clone [your-repo-link] xv6-extended
+cd xv6-extended
+```
 
-The code in the files that constitute xv6 is
-Copyright 2006-2018 Frans Kaashoek, Robert Morris, and Russ Cox.
+## Features
 
-ERROR REPORTS
+### System Calls
+We've added new system calls to the xv6 kernel to support advanced operations. These include:
+- `sys_myCall`: An example system call (replace with your actual system calls and describe their functionalities).
 
-We don't process error reports (see note on top of this file).
+### CPU Scheduling
+Implemented a new CPU scheduling algorithm to improve process management and CPU utilization. This includes:
+- Round Robin: Enhanced the existing scheduling mechanism to ensure fairness and efficiency.
+- Priority Scheduling: Processes are now scheduled based on priority, with mechanisms to prevent starvation.
 
-BUILDING AND RUNNING XV6
+### Memory Mapping (Mmap)
+Introduced memory mapping functionality, allowing processes to map files into their address space. This enhances file I/O operations by leveraging direct memory access.
 
-To build xv6 on an x86 ELF machine (like Linux or FreeBSD), run
-"make". On non-x86 or non-ELF machines (like OS X, even on x86), you
-will need to install a cross-compiler gcc suite capable of producing
-x86 ELF binaries (see https://pdos.csail.mit.edu/6.828/).
-Then run "make TOOLPREFIX=i386-jos-elf-". Now install the QEMU PC
-simulator and run "make qemu".
+### Page Replacement
+Implemented advanced page replacement strategies to optimize memory usage and reduce page faults. These strategies include:
+- Least Recently Used (LRU): Pages that have not been accessed recently are replaced first.
+- Clock Algorithm: A circular queue design that approximates LRU with reduced overhead.
+
+## Usage
+To leverage the new features in your xv6 projects, refer to the following usage examples:
+- System Calls: `int myCall(void)`
+- CPU Scheduling: Managed automatically by the kernel. Priority for processes can be adjusted using the `setpriority` system call.
+- Memory Mapping: Use the `mmap` system call to map files into a process's memory space.
+- Page Replacement: The kernel manages page replacement automatically based on the configured strategy.
+
+## Building and Running
+To build and run the extended xv6:
+```bash
+make clean
+make
+make qemu-nox
+```
+
+## Contributors
+- [Your Name](mailto:your.email@example.com)
+
+## License
+This project inherits the license from the original xv6 project, which is based on the MIT License.
+
+---
+
+Replace placeholder sections (like your repository link, system call names, and detailed descriptions) with the specific details of your implementation. This README aims to provide a clear and concise overview of your xv6 enhancements for potential users or contributors.
