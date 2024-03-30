@@ -1,6 +1,4 @@
-Certainly! Below is a README template for your xv6 modifications, which include system calls, CPU scheduling, memory mapping (`mmap`), and page replacement features. Adjust the content as needed to better fit your project specifics.
 
----
 
 # Extended xv6 Operating System
 
@@ -72,6 +70,3 @@ make qemu-nox
 ## License
 This project inherits the license from the original xv6 project, which is based on the MIT License.
 
----
-
-Replace placeholder sections (like your repository link, system call names, and detailed descriptions) with the specific details of your implementation. This README aims to provide a clear and concise overview of your xv6 enhancements for potential users or contributors.
