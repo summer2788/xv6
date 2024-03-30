@@ -26,7 +26,7 @@ Before you start, ensure you have a development environment set up for xv6. This
 
 Clone the modified xv6 repository:
 ```bash
-git clone [your-repo-link] xv6-extended
+git clone [https://github.com/summer2788/xv6.git] xv6-extended
 cd xv6-extended
 ```
 
@@ -65,7 +65,7 @@ make qemu-nox
 ```
 
 ## Contributors
-- [Your Name](mailto:your.email@example.com)
+- [Jongeun Park](summer2788@g.skku.edu)
 
 ## License
 This project inherits the license from the original xv6 project, which is based on the MIT License.
